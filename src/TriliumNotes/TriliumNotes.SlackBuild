@@ -33,7 +33,8 @@ PKGTYPE=${PKGTYPE:-tgz}
 OUTPUT=${OUTPUT:-/tmp}
 TMP=${TMP:-/tmp/SBo}
 PKG=$TMP/package-$PRGNAM
-ARCH='x64'
+ARCH='x86_64'
+SRCARCH='x64'
 
 set -e
 
@@ -42,18 +43,30 @@ if [ -n "$PRINT_PACKAGE_NAME" ]; then
   exit 0
 fi
 
-
 rm -rf $PKG
 mkdir -p "$TMP" "$PKG" "$OUTPUT"
-cp ${PRGNAM}-v${VERSION}-linux-${ARCH}.rpm $PKG/
 
 cd "$PKG"
+rpm2cpio "$CWD/${PRGNAM}-v${VERSION}-linux-${SRCARCH}.rpm" | cpio -idmv
+find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs strip --strip-unneeded  2> /dev/null || true
+find $PKG -print0 | xargs -0 file | grep -e "executable" -e "shared object" | grep ELF \
+  | cut -f 1 -d : | xargs chmod 0755 2> /dev/null || true
 
-RPM="${PRGNAM}-v${VERSION}-linux-${ARCH}.rpm"
+mv $PKG/usr/lib $PKG/usr/lib64
+rm -f $PKG/usr/bin/trilium
+cat > $PKG/usr/bin/trilium << EOF
+#!/bin/bash
+exec /usr/lib64/trilium/trilium "\$@"
+EOF
+chmod 0755 $PKG/usr/bin/trilium
 
-rpm2cpio "$RPM" | cpio -idmv
+rm -rf $PKG/usr/lib64/.build-id
 
-rm  $PKG/${PRGNAM}-v${VERSION}-linux-${ARCH}.rpm
+mkdir -p $PKG/usr/doc/$PRGNAM-$VERSION
+cat $CWD/$PRGNAM.SlackBuild > $PKG/usr/doc/$PRGNAM-$VERSION/$PRGNAM.SlackBuild
+install -m0644 $PKG/usr/share/doc/trilium/copyright $PKG/usr/doc/$PRGNAM-$VERSION/
+rm -rf $PKG/usr/share/doc
 
 mkdir -p "$PKG/install"
 install -m 0644 "$CWD/slack-desc" "$PKG/install/slack-desc"
@@ -61,9 +74,8 @@ install -m 0644 "$CWD/slack-desc" "$PKG/install/slack-desc"
 
 chown -R root:root "$PKG/"
 find "$PKG/" -type d -exec chmod 755 {} \;
-find "$PKG/" -type f -exec chmod 755 {} \;
 [ -d "$PKG/usr/share/applications" ] && chmod 644 "$PKG/usr/share/applications"/*.desktop || true
-[ -d "$PKG/usr/share/icons" ] && find "$PKG/usr/share/icons" -type f -exec chmod 644 {} \;
+[ -d "$PKG/usr/share/pixmaps" ] && find "$PKG/usr/share/pixmaps" -type f -exec chmod 644 {} \;
 
 cd "$PKG"
 /sbin/makepkg -l n -c n "$OUTPUT/$PRGNAM-$VERSION-$ARCH-$BUILD$TAG.$PKGTYPE"

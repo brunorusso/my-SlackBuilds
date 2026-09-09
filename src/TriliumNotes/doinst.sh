@@ -22,9 +22,6 @@ preserve_perms() {
   config $NEW
 }
 
-preserve_perms etc/rc.d/rc.squid.new
-preserve_perms etc/squid/mime.conf.new
-preserve_perms etc/squid/squid.conf.new
-preserve_perms etc/squid/errorpage.css.new
-preserve_perms etc/logrotate.d/squid.new
-
+if [ -x /usr/bin/update-desktop-database ]; then
+  /usr/bin/update-desktop-database -q usr/share/applications >/dev/null 2>&1
+fi
